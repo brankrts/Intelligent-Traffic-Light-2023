@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Streaming</title>
+</head>
+<body>
+    <canvas width="1000" height="500" id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const ws = new WebSocket('ws://localhost:3000');  // WebSocket sunucusunun adresini ve portunu ayarlayın
+
+        ws.binaryType = 'arraybuffer';
+
+        ws.onmessage = (event) => {
+            const arrayBuffer = event.data;
+            const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+            const imageUrl = URL.createObjectURL(blob);
+            const image = new Image();
+            
+            image.onload = () => {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
+
+            image.src = imageUrl;
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+    </script>
+</body>
+</html>

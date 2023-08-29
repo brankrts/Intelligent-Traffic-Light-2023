@@ -1,0 +1,6 @@
+/ITL_NodeJS_WS_Server/node_modules
+/ITL_Python_Server/yolov5
+/ITL_Python_Server/assets
+/ITL_Python_Server/*.pt
+/**/__pycache__
+/**/**/__pycache__
