@@ -2,7 +2,6 @@ import time
 from constants import RED, GREEN, YELLOW
 import math
 
-
 class TrafficLight:
 
     def __init__(self, name):
@@ -11,9 +10,9 @@ class TrafficLight:
         self.light_color = RED
         self.yellow_time = 2
         self.green_time = 0
+        self.state = None
 
-        self.last_red_time = time.time()
-
+        self.last_red_time = None
 
         self.current_density = 0
         self.overall_vehicle_density = 0.1
@@ -21,6 +20,18 @@ class TrafficLight:
 
     def set_overall_vehicle_density(self, overall_vehicle_density):
         self.overall_vehicle_density = overall_vehicle_density if overall_vehicle_density != 0 else 0.1
+
+    def set_red_time(self):
+        if self.last_red_time is None and self.light_color is RED:
+            self.last_red_time = time.time()
+    def set_state(self,state):
+        self.state = state
+
+    def get_state(self):
+        return self.state
+
+    def get_red_time (self):
+        return self.last_red_time
 
     def set_current_density(self, density):
         self.current_density = density
@@ -37,6 +48,7 @@ class TrafficLight:
         self.colorState = False
 
     def to_green(self):
+
         self.last_red_time = None
         self.to_yellow()
         time.sleep(self.yellow_time)
@@ -73,7 +85,7 @@ class TrafficLight:
                 (self.current_density * 0.3) + \
                 ((round(time.time() - self.last_red_time)/(math.pow(10, 3))) * 0.3)
 
-            self.priority = priority
+            self.priority = priority  * self.current_density
 
         else:
             self.priority = 0

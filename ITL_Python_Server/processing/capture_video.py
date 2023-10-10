@@ -67,10 +67,10 @@ class CaptureVideos:
 
         stacked_image = ImageMerger().merger([model.original_image, model.binary_image, model.max_area_mask,
                                               model.contour_img, model.line_image, model.contour_in_max_contour_area_image], 1)
-
         stacked_image = cv2.resize(stacked_image, (800, 500))
 
-        while (True):
+
+        while (cap.isOpened()):
 
             current_density = 0
             ret, frame = cap.read()
@@ -80,10 +80,14 @@ class CaptureVideos:
                 prev_frame_time = new_frame_time
                 frame, total_waiting_time, current_density = Detector().detect(frame, roi)
 
+                light.set_state("START")
                 light.set_current_density(current_density)
-                light.set_green_time(total_waiting_time)
+                light.set_green_time(total_waiting_time/lane_count )
                 light.set_overall_vehicle_density(self.total_density)
+
                 light.set_priority()
+                if current_density > 0:
+                    light.set_red_time()
 
                 frame = cv2.circle(frame, (120, 500), 50,
                                    light.light_color, -1)
@@ -93,14 +97,21 @@ class CaptureVideos:
                 time_to_wait = 'Green Time: ' + \
                     str(int(total_waiting_time/lane_count))
                 lines = "Lane Count : " + str(lane_count)
+
+                last_red_time = light.get_red_time()
                 cv2.putText(frame, fps, (10, 40),
                             cv2.FONT_HERSHEY_PLAIN, 2, RED, 3)
                 cv2.putText(frame, time_to_wait, (10, 80),
                             cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
                 cv2.putText(frame, lines, (10, 120),
                             cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
-                self.cams[light.name] = frame
 
+                self.cams[light.name] = frame
+            else : 
+                light.set_state("STOP")
+
+
+            
     def join_cams(self):
         while True:
             stacked_image = ImageMerger().merger(
@@ -162,10 +173,9 @@ class CaptureVideos:
 
             light.to_green()
             queue.push(light)
-            queue.update_priority()
-
+            queue.update()
             max_priority = max(queue.queue, key=lambda light: light.priority)
             for light in self.queue.queue:
                 print(
-                    f'{light.getName()} --> Oncelik degeri : {light.get_priority()/(max_priority.priority+0.1):.6f}')
+                        f'{light.getName()} --> Oncelik degeri : {light.get_priority()/(max_priority.priority+0.1):.6f} STATE : {light.get_state()} queue : length = {len(queue)}')
             print("\n")

@@ -21,3 +21,8 @@ class Queue:
     def update_priority(self):
         self.queue = sorted(
             self.queue, key=lambda light: light.priority, reverse=True)
+    def update(self):
+        self.update_priority()
+        self.queue = list(filter(lambda light:light.get_state() != "STOP",self.queue))
+
+
