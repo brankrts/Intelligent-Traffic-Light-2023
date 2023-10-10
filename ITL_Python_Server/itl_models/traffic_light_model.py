@@ -11,7 +11,10 @@ class TrafficLight:
         self.light_color = RED
         self.yellow_time = 2
         self.green_time = 0
+
         self.last_red_time = time.time()
+
+
         self.current_density = 0
         self.overall_vehicle_density = 0.1
         self.priority = 0

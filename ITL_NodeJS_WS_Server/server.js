@@ -1,5 +1,6 @@
 const WebSocket = require("ws");
 const http = require("http");
+const cp = require("child_process")
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
@@ -24,6 +25,14 @@ wss.on("connection", (ws) => {
   });
 });
 
+
 server.listen(3000, () => {
+
+  const result = cp.execSync("conda activate bitirme && python ../ITL_Python_Server/main.py -m web" )
+  if (result.buffer.toString()) {
+    console.log(result.toString())
+    
+  }
   console.log("Server is listening on port 3000");
+
 });

@@ -15,7 +15,8 @@ from util import ImageMerger
 
 class CaptureVideos:
 
-    def __init__(self):
+    def __init__(self, is_web):
+        self.is_web= is_web 
         self.thread_pool = ThreadPool()
         self.light1 = TrafficLight(name="light1")
         self.light2 = TrafficLight(name="light2")
@@ -35,12 +36,22 @@ class CaptureVideos:
 
     def local_video(self, path, light: TrafficLight, index, roi):
 
-        #TODO video bitiminde iligili videoya tekabul eden trafik isigi kuruktan silinmelidir.
+        # TODO : video bitiminde iligili videoya tekabul eden trafik isigi kuruktan silinmelidir.
+        # TODO : oncelikli kuyruk icin kullnailan algoritma icerisinde kullanilan kirmizi isik son gelen araca ait olmalidir
+        #           Trafik isigi kirmizi olduktan sorna yapilabilir
+        #           Kirmizi olduktan ve ilk tanimlama isleminden sonra bu islem gerceklestirilebilir.
+        #           Traffic light model icerisinde yapilmasi gerekmektedir.
+        #           Detection modelin bir sinyal gondermesi gerekmektedir.
+        #           Sinyal neticesinde zamanlama tetiklenerek  yesil isik olana kadar devam edecektir. Yesil isik olduktan sonra sure sifirlanmalidir.
+
+    
+
         roi_model = RoiModel(roi)
 
         cap = cv2.VideoCapture(path)
-        prev_frame_time = 0
+
         new_frame_time = 0
+        prev_frame_time = 0
         finder = LaneContourFinder(contour_threshold=roi_model.contour_threshold,
                                    contour_distance=roi_model.contour_distance, contour_area_threshold=roi_model.contour_area_threshold)
         lane_count = None
@@ -57,14 +68,13 @@ class CaptureVideos:
         stacked_image = ImageMerger().merger([model.original_image, model.binary_image, model.max_area_mask,
                                               model.contour_img, model.line_image, model.contour_in_max_contour_area_image], 1)
 
-        stacked_image = cv2.resize(stacked_image, (300, 300))
+        stacked_image = cv2.resize(stacked_image, (800, 500))
 
         while (True):
 
             current_density = 0
             ret, frame = cap.read()
             new_frame_time = time.time()
-
             if ret:
                 fps = 1/(new_frame_time-prev_frame_time)
                 prev_frame_time = new_frame_time
@@ -97,8 +107,12 @@ class CaptureVideos:
                 [[self.cams["light1"], self.cams["light2"], self.cams["light3"], self.cams["light4"]]], 1)
 
             stacked_image = cv2.resize(stacked_image, (1700, 500))
+
             self.total_image = stacked_image
-            #cv2.imshow("Kavsaklar", stacked_image)
+
+            if not self.is_web : 
+                cv2.imshow("Kavsaklar", stacked_image)
+
             if cv2.waitKey(12) & 0xFF == ord('q'):
                 break
 
@@ -128,7 +142,9 @@ class CaptureVideos:
         self.thread_pool.add_thread(Thread(target=self.local_video, args=(
 
             "assets/video4.mp4", self.light4, 3, MAIN_ROI4), daemon=True))
-        self.thread_pool.add_thread(Thread(target=self.send_websocket))
+        
+        if self.is_web: 
+            self.thread_pool.add_thread(Thread(target=self.send_websocket))
 
         self.thread_pool.add_thread(
             Thread(target=self.light_changes, args=(self.queue,)))
