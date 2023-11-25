@@ -2,7 +2,6 @@
 /ITL_Python_Server/yolov5
 /ITL_Python_Server/assets
 /ITL_Python_Server/*.pt
-/ITL_Python_Server/deneme
 /ITL_Python_Server/project_images
 /**/__pycache__
 /**/**/__pycache__
