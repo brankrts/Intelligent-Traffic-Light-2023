@@ -1,7 +1,7 @@
 import cv2
 import time
 import numpy as np
-import websockets
+import websockets 
 import asyncio
 from threading import Thread
 
@@ -14,9 +14,19 @@ from util import ImageMerger
 
 
 class CaptureVideos:
+    #TODO[DONE]:--threadlerin bir birine bagli olarak calismasi gerekmektedir. Main thread bittkten sonra tum threadlerin sonlanmasi gerekmektedir. Yada durudurulma durumunda tum threadlerin durudurulmasi gerekmektedir.
+    #TODO:  client tarafinda configurasyonlarin yapilabilmesi icin processing ciktilarinin image olarak servere gonderilmesi gerekmektedir.
+    #TODO: processing modulu icerisinde ki islemlerin hata durumlarinda bile cikti vermeye devam etmesi gerekmektedir. Yayin akisi bozulmamalidir.
+    #TODO: gerekli denetimlerin yapilmasi ve degerlerin gercek zamanli olarak server ile paylasilmasi gerekmektedir.
+    #TODO: isik degisimlerinde yuksek oncelige sahip olan isiga bakilmali ve eger yesil isik suresi 0 dan yuksek ise yesil isik verilmelidir.
+    #TODO: akiskan olmayan trafik kosullarinda buna gereksinim olmayacaktir.Fakat simulasyon ortaminda araclar sabit durmadigindan bunun kontrol edilmesi gerekmektedir.
 
+    
     def __init__(self, is_web):
+
+        self.is_threads_on = True
         self.is_web= is_web 
+
         self.thread_pool = ThreadPool()
         self.light1 = TrafficLight(name="light1")
         self.light2 = TrafficLight(name="light2")
@@ -33,19 +43,10 @@ class CaptureVideos:
             "light4": np.zeros((400, 400), dtype=np.uint8),
         }
         self.total_image = cv2.imread('./assets/anaresim.png')
+        self.processed_image = [] 
 
     def local_video(self, path, light: TrafficLight, index, roi):
-
-        # TODO : video bitiminde iligili videoya tekabul eden trafik isigi kuruktan silinmelidir.
-        # TODO : oncelikli kuyruk icin kullnailan algoritma icerisinde kullanilan kirmizi isik son gelen araca ait olmalidir
-        #           Trafik isigi kirmizi olduktan sorna yapilabilir
-        #           Kirmizi olduktan ve ilk tanimlama isleminden sonra bu islem gerceklestirilebilir.
-        #           Traffic light model icerisinde yapilmasi gerekmektedir.
-        #           Detection modelin bir sinyal gondermesi gerekmektedir.
-        #           Sinyal neticesinde zamanlama tetiklenerek  yesil isik olana kadar devam edecektir. Yesil isik olduktan sonra sure sifirlanmalidir.
-
-    
-
+        
         roi_model = RoiModel(roi)
 
         cap = cv2.VideoCapture(path)
@@ -64,13 +65,13 @@ class CaptureVideos:
             contour_model=contour_model, min_y_threshold=roi_model.min_y_threshold, max_y_threshold=roi_model.max_y_threshold)
 
         lane_count, model = count_finder.visualize()
-
         stacked_image = ImageMerger().merger([model.original_image, model.binary_image, model.max_area_mask,
                                               model.contour_img, model.line_image, model.contour_in_max_contour_area_image], 1)
+        cv2.putText(stacked_image, str(light.name), (10, 40),
+                            cv2.FONT_HERSHEY_PLAIN, 2, RED, 3)
         stacked_image = cv2.resize(stacked_image, (800, 500))
-
-
-        while (cap.isOpened()):
+        self.processed_image.append(stacked_image)
+        while cap.isOpened() and self.is_threads_on:
 
             current_density = 0
             ret, frame = cap.read()
@@ -113,18 +114,20 @@ class CaptureVideos:
 
             
     def join_cams(self):
+
         while True:
             stacked_image = ImageMerger().merger(
                 [[self.cams["light1"], self.cams["light2"], self.cams["light3"], self.cams["light4"]]], 1)
-
             stacked_image = cv2.resize(stacked_image, (1700, 500))
-
             self.total_image = stacked_image
-
+            # if len(self.processed_image) ==4:
+                # concatted_image = cv2.vconcat(self.processed_image[0] ,self.processed_image[1] , self.processed_image[2] , self.processed_image[3] )
+                # cv2.imshow("concatted processed iamge" , concatted_image)
             if not self.is_web : 
                 cv2.imshow("Kavsaklar", stacked_image)
 
             if cv2.waitKey(12) & 0xFF == ord('q'):
+                self.is_threads_on = False
                 break
 
     def send_websocket(self):
@@ -164,10 +167,8 @@ class CaptureVideos:
 
     def light_changes(self, queue: Queue):
 
-        while True:
-
+        while self.is_threads_on:
             light: TrafficLight = queue.pop()
-
             print(
                 f"{light.name} trafik isigi yesil kalma suresi : {light.get_green_time()}\n")
 
