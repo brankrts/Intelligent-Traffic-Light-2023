@@ -2,7 +2,8 @@ BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
 YELLOW = (0, 255, 255)
-
+INTERSECTION_NAME ="Catmaca"
+COLLECTION_NAME = "intersectionconfigs"
 MAIN_ROI1 = {
     "x1": 991,
     "y1": 660,
@@ -22,21 +23,18 @@ MAIN_ROI1 = {
         "width": 700,
         "height": 430
     },
+    "light_name": "",
+    "is_setted" : False,
+    "lane_count": 0,
     "name": "main_roi_1",
     "config": {
-
             "contour_threshold": 100,
             "contour_distance": 0,
             "contour_area_threshold": 50,
             "min_y_threshold": 10,
             "max_y_threshold": 50
-
     }
-
-
-
 }
-
 
 MAIN_ROI2 = {
     "x1": 175,

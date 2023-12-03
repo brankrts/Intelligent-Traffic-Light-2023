@@ -182,7 +182,6 @@ class LaneCountFinder:
         return polygon_coords
 
     def visualize(self):
-
         self.__categorize_group_coords()
         self.__plot_coordinates()
         self.__sort_with_y_values()

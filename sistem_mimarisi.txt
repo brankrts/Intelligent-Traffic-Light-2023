@@ -1,0 +1,23 @@
+
+servisler : 
+
+  Python program:
+  Node js server:
+  React client : 
+  rasperry pi module:
+  Mongodb server:
+  [BETA] serit bulma servisi  :: Simdilik serit sayisi statik olarak belirlenecektir.
+
+
+Gotuntu isleme ve  karar islemleri python program icerisinde yapilacaktir. Yapilan eylemler node js servere gonderilerek 
+sonrasinda clientler ile paylasilmalidir. fakat goruntu rasperry pi ile alinarak python programina gonderilmelidir.
+Python program tum isiklar istatistikleri tutmali ve mongodb server icerisine kaydetmelidir.Tum api istekleri node js tarafindan
+karsilanmali ve clientler icinveri dagitilmalidir. Ilgili kavsaklar icin ayarlamalar yapilir iken clientdan coordinatlar , goruntu isleme
+ayarlari ve pencere boyutlari gibi degerler alinmalidir.Python program basladigi anda ilgili kavsak icin oncelikle serit sayisini bulmaktadir.
+
+Serit sayisi python tarafinda dinamik olarak elde edilmektedir. fakat bu elde etme islemi icin belli parametrelerin kullanicidan alinmasi gerekmektedir.
+bu parametreler neticesinde islemler gerceklestirilir ve eger istenilen elde eidldiyse goruntu ciktisi olarak verilmektedir.Client uygulamasinin
+oncelik ile bu islem icin parametreleri girmesi ve uygun cikti elde edildikten sonra sistemin calisilmasina izin verilmelidir.DOlayisi ile 
+python programi icerisinde bu isi gerceklestiren sinif icin bir endpoint olmali ve oncelikle bu islemin ciktisi kontrol edilmelidir.
+
+

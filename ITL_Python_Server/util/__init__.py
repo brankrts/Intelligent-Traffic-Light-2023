@@ -1,1 +1,2 @@
-from .image_merger import ImageMerger
+from .image_merger import *
+from .util import *

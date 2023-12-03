@@ -22,32 +22,32 @@ class Detector:
         self.density = 0
 
     def detect(self, img, roi):
-        self.main_roi = RoiModel(roi)
+        self.main_roi = roi
         current_values = None
         current_values = dict(
 
-            main_roi_1={
+            light_1={
                 'truck': 0,
                 'car': 0,
                 'bus': 0,
                 'motorcycle': 0,
                 'total_waiting_time': 0
             },
-            main_roi_2={
+            light_2={
                 'truck': 0,
                 'car': 0,
                 'bus': 0,
                 'motorcycle': 0,
                 'total_waiting_time': 0
             },
-            main_roi_3={
+            light_3={
                 'truck': 0,
                 'car': 0,
                 'bus': 0,
                 'motorcycle': 0,
                 'total_waiting_time': 0
             },
-            main_roi_4={
+            light_4={
                 'truck': 0,
                 'car': 0,
                 'bus': 0,
@@ -78,7 +78,7 @@ class Detector:
                         img, [x1, y1, x2, y2], label, center_x, center_y, self.main_roi, current_values)
 
             return img, current_values[self.main_roi.name]["total_waiting_time"], self.density
-        return np.zeros((1000, 650)), 0
+        return np.zeros((500, 500)), 0
 
     def findVehicleType(self, label):
         if label == TRUCK:
@@ -129,13 +129,13 @@ class Detector:
                     font, font_scale, (0, 255, 0), thickness)
 
     def drawRoiCircles(self, image, roi):
-
         corner_points = np.array([[roi.x1, roi.y1], [roi.x2, roi.y2], [roi.x3, roi.y3], [
                                  roi.x4, roi.y4], [roi.x5, roi.y5], [roi.x6, roi.y6]])
 
         for corner in corner_points:
             image = cv2.circle(image, corner, self.radius,
                                color=BLUE, thickness=self.circleThickness)
+
 
         cv2.polylines(image, [corner_points], True, (0, 255, 255), 3)
 
