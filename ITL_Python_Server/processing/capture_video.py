@@ -5,6 +5,7 @@ import websockets
 import asyncio
 import base64
 import json
+import socket
 
 from threading import Thread
 
@@ -28,17 +29,16 @@ class CaptureVideos:
     #TODO:--> gonderim yaptiginda client ise onceden tanimlanmis trafik isigi isimlerine farkli resimler icin config eklemektedir.
 
     
-    def __init__(self, is_web,db_configs):
+    def __init__(self, mode,db_configs):
 
         self.is_threads_on = True
-        self.is_web= is_web 
+        self.mode= mode 
         self.db_configs = db_configs
-
         self.thread_pool = ThreadPool()
-        self.light1 = TrafficLight(name="light_1")
-        self.light2 = TrafficLight(name="light_2")
-        self.light3 = TrafficLight(name="light_3")
-        self.light4 = TrafficLight(name="light_4")
+        self.light1 = TrafficLight(name="light_1" , gpio_pins=[7])
+        self.light2 = TrafficLight(name="light_2", gpio_pins=[11])
+        self.light3 = TrafficLight(name="light_3", gpio_pins=[13])
+        self.light4 = TrafficLight(name="light_4", gpio_pins=[15])
         self.queue = Queue(
             [self.light1, self.light2, self.light3, self.light4])
         self.total_density = sum([self.light1.get_current_density(), self.light2.get_current_density(
@@ -51,12 +51,14 @@ class CaptureVideos:
         }
         self.total_image = cv2.imread('./assets/anaresim.png')
         self.processed_image = [] 
+        self.current_light = None
 
     def local_video(self, path, light: TrafficLight):
         
         # roi_model = RoiModel(roi)
 
         cap = cv2.VideoCapture(path)
+        #light.set_state("STOP")
         new_frame_time = 0
         prev_frame_time = 0
         # finder = LaneContourFinder(contour_threshold=roi_model.contour_threshold,
@@ -98,11 +100,12 @@ class CaptureVideos:
                     light.set_overall_vehicle_density(self.total_density)
 
                     light.set_priority()
-                    if current_density > 0:
-                        light.set_red_time()
 
-                    # frame = cv2.circle(frame, (120, 200), 50,
-                                    # light.light_color, -1)
+                    # if current_density == 0:
+                    #     light.set_red_time()
+
+                    frame = cv2.circle(frame, (120, 200), 50,
+                                    light.light_color, -1)
 
                     # frame = cv2.resize(frame, (400, 400))
                     fps = "FPS : " + str(int(fps))
@@ -110,13 +113,15 @@ class CaptureVideos:
                         str(int(total_waiting_time/lane_count))
                     lines = "Lane Count : " + str(lane_count)
 
-                    last_red_time = light.get_red_time()
-                    # cv2.putText(frame, fps, (10, 40),
-                                # cv2.FONT_HERSHEY_PLAIN, 2, RED, 3)
-                    # cv2.putText(frame, time_to_wait, (10, 80),
-                    #             cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
-                    # cv2.putText(frame, lines, (10, 120),
-                    #             cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
+                    cv2.putText(frame, fps, (10, 40),
+                                cv2.FONT_HERSHEY_PLAIN, 2, RED, 3)
+                    cv2.putText(frame, time_to_wait, (10, 80),
+                                cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
+                    cv2.putText(frame, lines, (10, 120),
+                                cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
+                    cv2.putText(frame,f"{light.get_priority():.6f}", (10, 350),
+                                cv2.FONT_HERSHEY_PLAIN, 2, GREEN, 3)
+
 
                 self.cams[light.name] = frame
             else : 
@@ -132,25 +137,48 @@ class CaptureVideos:
             stacked_image = cv2.resize(stacked_image, (1000, 1000))
             self.total_image = stacked_image
            
-            if not self.is_web : 
+            if self.mode == "local" or self.mode == "pi" : 
+                stacked_image =cv2.resize(stacked_image , (800,800))
                 cv2.imshow("Kavsaklar", stacked_image)
 
             if cv2.waitKey(12) & 0xFF == ord('q'):
                 self.is_threads_on = False
                 break
 
+
     def send_websocket(self):
-       
         async def main():
-
             server_address = "ws://localhost:3000"
-
             async with websockets.connect(server_address) as websocket:
                 video_task = asyncio.create_task(self.send_video(websocket))
                 messages_task = asyncio.create_task(self.receive_messages(websocket))
                 await asyncio.gather(video_task, messages_task)
         
         asyncio.run(main())
+    def send_pi_socket(self):
+        #TODO: kontrol mekanizmasi kurulmali veri sadece isiklarin degisiminde gonderilmelidir.
+        server_address = ('192.168.1.6', 8750)  
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            client_socket.connect(server_address)
+            print("Raspberry Pi'ye bağlanıldı.")
+            while True:
+                if self.current_light != None:
+                    data = {'pin': self.current_light.pins[0], 'green_time': self.current_light.get_green_time()}
+                    json_data = json.dumps(data)
+                    client_socket.send(json_data.encode('utf-8'))
+                    time.sleep(self.current_light.yellow_time)
+        except Exception as e:
+            client_socket.close()
+            print(e)
+        finally:
+            client_socket.close()
+        
+        # async def main():
+        #     server_address = "ws://192.168.1.6:8765"
+        #     async with websockets.connect(server_address) as websocket:
+        #         await asyncio.gather(self.send_pi(websocket=websocket))
+        # asyncio.run(main())
 
     async def send_video(self,websocket):
         while True:
@@ -166,6 +194,16 @@ class CaptureVideos:
             await websocket.send(json.dumps(data))
             await asyncio.sleep(0.000001) 
 
+    # async def send_pi(self,websocket):
+    #         while True:
+    #             if self.current_light != None :
+    #                 data = {
+    #                     "pin":self.current_light.pins[0],
+    #                     "green_time": self.current_light.yellow_time
+    #                 }
+    #                 await websocket.send(json.dumps(data))
+    #                 await asyncio.sleep(0.000001) 
+
     async def receive_messages(self,websocket):
         try:
             while True:
@@ -174,36 +212,62 @@ class CaptureVideos:
         except websockets.exceptions.ConnectionClosedError:
             print("Server connection closed.")
     
-    async def main(self):
-
-        server_address = "ws://localhost:3000"
-
-        async with websockets.connect(server_address) as websocket:
-            video_task = asyncio.create_task(self.send_video(websocket))
-            messages_task = asyncio.create_task(self.receive_messages(websocket))
-            await asyncio.gather(video_task, messages_task)
+    # async def main(self):
+    #     server_address = "ws://localhost:3000"
+    #     async with websockets.connect(server_address) as websocket:
+    #         video_task = asyncio.create_task(self.send_video(websocket))
+    #         messages_task = asyncio.create_task(self.receive_messages(websocket))
+    #         await asyncio.gather(video_task, messages_task)
 
     def start(self):
-        # rois = {"light_1":None , "light_2":None , "light_3":None , "light_4":None}
-        # if self.db_configs != None:
-        #     for config in self.db_configs:
-        #         rois[config.name] = config
+       
+        if self.mode == "local" or self.mode == "web":
 
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                "assets/video1.mp4", self.light1), daemon=True))
 
-        self.thread_pool.add_thread(Thread(target=self.local_video, args=(
-            "assets/video1.mp4", self.light1), daemon=True))
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                "assets/video2.mp4", self.light2  ), daemon=True))
 
-        self.thread_pool.add_thread(Thread(target=self.local_video, args=(
-            "assets/video2.mp4", self.light2  ), daemon=True))
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                "assets/video3.mp4", self.light3 ), daemon=True))
 
-        self.thread_pool.add_thread(Thread(target=self.local_video, args=(
-            "assets/video3.mp4", self.light3 ), daemon=True))
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                "assets/video4.mp4", self.light4), daemon=True))
 
-        self.thread_pool.add_thread(Thread(target=self.local_video, args=(
-            "assets/video4.mp4", self.light4), daemon=True))
+            if self.mode == "web":
+                self.thread_pool.add_thread(Thread(target=self.send_websocket))
+
  
-        if self.is_web: 
+        if self.mode == "full":
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                0, self.light1), daemon=True))
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                1, self.light2  ), daemon=True))
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                2, self.light3 ), daemon=True))
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                "assets/video3.mp4", self.light4), daemon=True))
+
             self.thread_pool.add_thread(Thread(target=self.send_websocket))
+
+        
+        if self.mode == "pi": 
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                0, self.light1), daemon=True))
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                1, self.light2  ), daemon=True))
+
+            self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+                2, self.light3 ), daemon=True))
+
+            # self.thread_pool.add_thread(Thread(target=self.local_video, args=(
+            #     "assets/video3.mp4", self.light4), daemon=True))
 
         self.thread_pool.add_thread(
             Thread(target=self.light_changes, args=(self.queue,)))
@@ -213,12 +277,15 @@ class CaptureVideos:
 
     def light_changes(self, queue: Queue):
 
+        if self.mode == "pi" or self.mode == "full":
+            server_address = ('192.168.2.212', 8700)  
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect(server_address)
+
         while self.is_threads_on:
             light: TrafficLight = queue.pop()
-            print(
-                f"{light.name} trafik isigi yesil kalma suresi : {light.get_green_time()}\n")
-
-            light.to_green()
+            self.current_light = light
+            light.to_green(client_socket , self.mode)
             queue.push(light)
             queue.update()
             max_priority = max(queue.queue, key=lambda light: light.priority)

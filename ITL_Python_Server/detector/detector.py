@@ -10,7 +10,7 @@ from constants import TRUCK_WAITING_TIME, CAR_WAITING_TIME, MOTORCYCLE_WAITING_T
 
 class Detector:
 
-    model = load('yolov5', 'yolov5n', source='local')
+    model = load('yolov5', 'yolov5m', source='local')
     model.cuda()
     labels = ["car", "truck", "bus", "motorcycle"]
     radius = 8
@@ -68,8 +68,8 @@ class Detector:
                 x1, y1 = int(df['xmin'][ind]), int(df['ymin'][ind])
                 x2, y2 = int(df['xmax'][ind]), int(df['ymax'][ind])
                 label = df['name'][ind]
-                # conf = df['confidence'][ind]
 
+                # conf = df['confidence'][ind]
                 if label in self.labels:
                     center_x = x1 + int((x2-x1)/2)
                     center_y = y1 + int((y2-y1)/2)

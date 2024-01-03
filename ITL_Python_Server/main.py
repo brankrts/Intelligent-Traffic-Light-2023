@@ -15,14 +15,15 @@ if __name__ == "__main__":
     # result = mongo_client.delete_one(COLLECTION_NAME , {"intersectionSelection":INTERSECTION_NAME})
     result = mongo_client.find_one(COLLECTION_NAME , {"intersectionSelection":INTERSECTION_NAME})
     application_config = process_request(result)
-        
+    for key in application_config.keys():
+        application_config[key].lane_count = 3
     # # tester = TestOnImages()
     # # tester.test(ImageMerger , LaneContourFinder , LaneCountFinder)
     parser = argparse.ArgumentParser(description='Setting executation type.')
-    parser.add_argument("-m" , "--mode" , type = str )
+    parser.add_argument("-m" , "--mode" , type = str , default="local")
     args = parser.parse_args()
-    mode = True if args.mode =="web" else False 
-    application = CaptureVideos(mode,application_config)
+    mode = args.mode 
+    application = CaptureVideos(mode, application_config)
     application.start()
 
 
